@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <!-- Блокируем масштабирование щипком, чтобы экран телефона не прыгал -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Web Paint</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; /* Убираем ползунки прокрутки */
+            background-color: #222; 
+            touch-action: none; /* Запрещаем браузеру перехватывать жесты на телефоне */
+        }
+        canvas { 
+            display: block; 
+            background: white; 
+        }
+        /* Блок с кнопками снизу экрана */
+        .ui { 
+            position: absolute; 
+            bottom: 30px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            display: flex; 
+            gap: 15px; 
+            background: rgba(255,255,255,0.9); 
+            padding: 10px 15px; 
+            border-radius: 15px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3); 
+        }
+        .btn { 
+            width: 45px; 
+            height: 45px; 
+            border-radius: 50%; 
+            border: 3px solid transparent; 
+            cursor: pointer; 
+            transition: 0.1s;
+        }
+        .btn.active { 
+            border-color: #333; 
+            transform: scale(1.1); 
+        }
+        #btn-red { background: #ff4757; }
+        #btn-green { background: #2ed573; }
+        #btn-blue { background: #1e90ff; }
+        
+        #btn-clear { 
+            background: #f1f2f6; 
+            width: auto; 
+            border-radius: 10px; 
+            padding: 0 20px; 
+            font-family: sans-serif;
+            font-weight: bold; 
+            font-size: 16px;
+            line-height: 45px; 
+            color: #333;
+            border: 2px solid #ccc;
+        }
+        #btn-clear:active { background: #dfe4ea; }
+    </style>
+</head>
+<body>
+    <canvas id="paintCanvas"></canvas>
+    
+    <div class="ui">
+        <div class="btn" id="btn-red" onclick="setColor('#ff4757', this)"></div>
+        <div class="btn" id="btn-green" onclick="setColor('#2ed573', this)"></div>
+        <div class="btn" id="btn-blue" onclick="setColor('#1e90ff', this)"></div>
+        <div class="btn" id="btn-clear" onclick="clearCanvas()">Очистить</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('paintCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let isDrawing = false;
+        let currentColor = '#ff4757';
+
+        // Растягиваем холст на весь экран
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            clearCanvas(); // Заливаем фон, иначе он будет прозрачным
+            
+            // Настройки кисти нужно задавать заново после каждого изменения размера холста
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';  // Закругленные концы линии
+            ctx.lineJoin = 'round'; // Закругленные углы на стыках
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function clearCanvas() {
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Логика переключения UI-кнопок
+        function setColor(color, element) {
+            currentColor = color;
+            document.querySelectorAll('.btn').forEach(btn => btn.classList.remove('active'));
+            if(element) element.classList.add('active');
+        }
+
+        // Универсальная функция для получения координат мыши ИЛИ пальца
+        function getPos(e) {
+            if (e.touches && e.touches.length > 0) {
+                return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+            return { x: e.clientX, y: e.clientY };
+        }
+
+        function startDraw(e) {
+            isDrawing = true;
+            const pos = getPos(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            // Сразу рисуем точку на случай микро-клика
+            ctx.lineTo(pos.x, pos.y);
+            ctx.strokeStyle = currentColor;
+            ctx.stroke();
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            // Блокируем стандартное поведение браузера (попытки скроллить страницу вниз)
+            e.preventDefault(); 
+            const pos = getPos(e);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.strokeStyle = currentColor;
+            ctx.stroke();
+        }
+
+        function stopDraw() {
+            isDrawing = false;
+            ctx.closePath();
+        }
+
+        // Подписка на события мыши (для ПК)
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDraw);
+        canvas.addEventListener('mouseout', stopDraw); // Прерываем линию, если курсор ушел за экран
+
+        // Подписка на события тапов (для телефона)
+        // {passive: false} нужно, чтобы браузер разрешил нам делать e.preventDefault()
+        canvas.addEventListener('touchstart', startDraw, {passive: false});
+        canvas.addEventListener('touchmove', draw, {passive: false});
+        canvas.addEventListener('touchend', stopDraw);
+
+        // Старт программы
+        resizeCanvas();
+        setColor('#ff4757', document.getElementById('btn-red'));
+    </script>
+</body>
+</html>
